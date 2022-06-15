@@ -33,7 +33,7 @@ type SpecMedataData struct {
 	Name                   string                 `json:"name" yaml:"name"`
 	CertStatus             string                 `json:"cert-status" yaml:"cert-status"`
 	Version                string                 `json:"version" yaml:"version"`
-	BindingType            string                 `json:"binding-type" yaml:"binding-type"`
+	BindingType            []string                 `json:"binding-type" yaml:"binding-type"`
 	SpecConnectionMetadata SpecConnectionMetadata `json:"connection-metadata" yaml:"connection-metadata"`
 	Operations             Operations             `json:"operations" yaml:"operations"`
 	InputBindingMetadata   InputBindingMetadata   `json:"input-binding-metadata" yaml:"input-binding-metadata"`
@@ -44,7 +44,7 @@ type SpecConnectionMetadata []SpecConnectionMetadataField
 type SpecConnectionMetadataField struct {
 	Name                 string `json:"name" yaml:"name"`
 	Required             bool   `json:"required" yaml:"required"`
-	BindingSupported     string   `json:"binding-support" yaml:"binding-support"`
+	BindingSupported     []string   `json:"binding-support" yaml:"binding-support"`
 	Description              string `json:"description" yaml:"description"`
 	Example              string `json:"example" yaml:"example"`
 }

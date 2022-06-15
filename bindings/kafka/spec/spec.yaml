@@ -1,56 +1,56 @@
 name: kafka
 cert-status: alpha
 version: v1
-binding-type: input/output
+binding-type: [input, output]
 connection-metadata:
   - name: topics
     required: false
-    binding-support: input
+    binding-support: [input]
     description: A comma-separated string of topics.
     example: mytopic1,topic2
   - name: brokers
     required: true
-    binding-support: input/output
+    binding-support: [input, output]
     description: A comma-separated string of Kafka brokers.
     example: localhost:9092,dapr-kafka.myapp.svc.cluster.local:9093
   - name: consumerGroup
     required: false
-    binding-support: input
+    binding-support: [input]
     description: A kafka consumer group to listen on. Each record published to a topic is delivered to one consumer within each consumer group subscribed to the topic.
     example: group1
   - name: publishTopic
     required: true
-    binding-support: output
+    binding-support: [output]
     description: The topic to publish to.
     example: mytopic
   - name: authRequired
     required: true
-    binding-support: input/output
+    binding-support: [input, output]
     description: Enable SASL authentication with the Kafka brokers.
     example: false
   - name: saslUsername
     required: false
-    binding-support: input/output
+    binding-support: [input, output]
     description: The SASL username used for authentication. Only required if authRequired is set to 'true'.
     example: adminuser
   - name: saslPassword
     required: false
-    binding-support: input/output
+    binding-support: [input, output]
     description: The SASL password used for authentication. Can be secretKeyRef to use a secret reference. Only required if authRequired is set to 'true'.
     example: KeFg23!
   - name: initialOffset
     required: false
-    binding-support: input
+    binding-support: [input]
     description: The initial offset to use if no offset was previously committed. Should be 'newest' or 'oldest'. Defaults to 'newest'.
     example: oldest
   - name: maxMessageBytes
     required: false
-    binding-support: input/output
+    binding-support: [input, output]
     description: The maximum size in bytes allowed for a single Kafka message. Defaults to 1024.
     example: 2048
   - name : version
     required: false
-    binding-support: input/output
+    binding-support: [input, output]
     description: Kafka cluster version. Defaults to 1.0.0
     example: 1.0.0
 operations:
