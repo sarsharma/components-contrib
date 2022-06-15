@@ -15,16 +15,22 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	_ "embed"
 
 	"github.com/dapr/kit/logger"
 
 	"github.com/dapr/components-contrib/bindings"
 	"github.com/dapr/components-contrib/internal/component/kafka"
+
 )
+
+//go:embed "spec/spec.yaml"
+var specYaml bindings.SpecYAML
 
 const (
 	publishTopic = "publishTopic"
@@ -69,12 +75,28 @@ func (b *Binding) Init(metadata bindings.Metadata) error {
 }
 
 func (b *Binding) Operations() []bindings.OperationKind {
-	return []bindings.OperationKind{bindings.CreateOperation}
+	return []bindings.OperationKind{bindings.CreateOperation, bindings.MetadataOperation}
 }
 
 func (b *Binding) Invoke(_ context.Context, req *bindings.InvokeRequest) (*bindings.InvokeResponse, error) {
-	err := b.kafka.Publish(b.publishTopic, req.Data, req.Metadata)
-	return nil, err
+	switch req.Operation {
+	case bindings.CreateOperation:
+		err := b.kafka.Publish(b.publishTopic, req.Data, req.Metadata)
+		return nil, err
+	case bindings.MetadataOperation:
+		specMetadata := bindings.SpecMedataData{}
+		err := specMetadata.UnmarshalYAML(specYaml)
+		if err != nil {
+			return nil, err
+		}
+		res, err:= json.Marshal(specMetadata)
+		if err != nil {
+			return nil, err
+		}
+		return &bindings.InvokeResponse{Data: res}, nil
+	default:
+		return nil, nil
+	}
 }
 
 func (b *Binding) Read(handler bindings.Handler) error {

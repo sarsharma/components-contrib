@@ -34,6 +34,7 @@ const (
 	CreateOperation OperationKind = "create"
 	DeleteOperation OperationKind = "delete"
 	ListOperation   OperationKind = "list"
+	MetadataOperation OperationKind = "getmetadata"
 )
 
 // GetMetadataAsBool parses metadata as bool.
