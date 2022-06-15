@@ -66,18 +66,26 @@ func (r *Redis) Ping() error {
 }
 
 func (r *Redis) Operations() []bindings.OperationKind {
-	return []bindings.OperationKind{bindings.CreateOperation}
+	return []bindings.OperationKind{bindings.CreateOperation, bindings.GetOperation}
 }
 
 func (r *Redis) Invoke(ctx context.Context, req *bindings.InvokeRequest) (*bindings.InvokeResponse, error) {
 	if val, ok := req.Metadata["key"]; ok && val != "" {
 		key := val
-		_, err := r.client.Do(ctx, "SET", key, req.Data).Result()
-		if err != nil {
-			return nil, err
+		if req.Operation == bindings.CreateOperation {
+			_, err := r.client.Do(ctx, "SET", key, req.Data).Result()
+			if err != nil {
+				return nil, err
+			}
+			return nil, nil
 		}
-
-		return nil, nil
+		if req.Operation == bindings.GetOperation {
+			getRes, err := r.client.Do(ctx, "GET", key).Result()
+			if err != nil {
+				return nil, err
+			}
+			return &bindings.InvokeResponse{Data: []byte(fmt.Sprint(getRes))}, nil
+		}
 	}
 
 	return nil, errors.New("redis binding: missing key on write request metadata")
