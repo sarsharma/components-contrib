@@ -15,6 +15,8 @@ package redis
 
 import (
 	"context"
+	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -24,6 +26,9 @@ import (
 	rediscomponent "github.com/dapr/components-contrib/internal/component/redis"
 	"github.com/dapr/kit/logger"
 )
+
+//go:embed "spec/spec.yaml"
+var specYaml bindings.SpecYAML
 
 // Redis is a redis output binding.
 type Redis struct {
@@ -66,21 +71,36 @@ func (r *Redis) Ping() error {
 }
 
 func (r *Redis) Operations() []bindings.OperationKind {
-	return []bindings.OperationKind{bindings.CreateOperation}
+	return []bindings.OperationKind{bindings.CreateOperation, bindings.MetadataOperation}
 }
 
 func (r *Redis) Invoke(ctx context.Context, req *bindings.InvokeRequest) (*bindings.InvokeResponse, error) {
-	if val, ok := req.Metadata["key"]; ok && val != "" {
-		key := val
-		_, err := r.client.Do(ctx, "SET", key, req.Data).Result()
+	switch req.Operation {
+	case bindings.CreateOperation:
+		if val, ok := req.Metadata["key"]; ok && val != "" {
+			key := val
+			_, err := r.client.Do(ctx, "SET", key, req.Data).Result()
+			if err != nil {
+				return nil, err
+			}
+
+			return nil, nil
+		}
+		return nil, errors.New("redis binding: missing key on write request metadata")
+	case bindings.MetadataOperation:
+		specMetadata := bindings.SpecMedataData{}
+		err := specMetadata.UnmarshalYAML(specYaml)
 		if err != nil {
 			return nil, err
 		}
-
-		return nil, nil
+		res, err := json.Marshal(specMetadata)
+		if err != nil {
+			return nil, err
+		}
+		return &bindings.InvokeResponse{Data: res}, nil
+	default:
+		return nil, errors.New("redis binding: unsupported operation")
 	}
-
-	return nil, errors.New("redis binding: missing key on write request metadata")
 }
 
 func (r *Redis) Close() error {
