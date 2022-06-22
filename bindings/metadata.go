@@ -28,7 +28,7 @@ type Metadata struct {
 // SpecYAML is the data read from the spec.yaml file.
 type SpecYAML []byte
 
-// SpecMetada represents the entire metadata for a binding
+// SpecMetada represents the entire metadata for a binding.
 type SpecMedataData struct {
 	Name                   string                 `json:"name" yaml:"name"`
 	CertStatus             string                 `json:"cert-status" yaml:"cert-status"`
@@ -39,10 +39,10 @@ type SpecMedataData struct {
 	InputBindingMetadata   InputBindingMetadata   `json:"input-binding-metadata" yaml:"input-binding-metadata"`
 }
 
-// SpecConnectionMetadata represents the collection of all possible connection metadata fields
+// SpecConnectionMetadata represents the collection of all possible connection metadata fields.
 type SpecConnectionMetadata []SpecConnectionMetadataField
 
-// SpecConnectionMetadataField represents details of a connection metadata field
+// SpecConnectionMetadataField represents details of a connection metadata field.
 type SpecConnectionMetadataField struct {
 	Name           string         `json:"name" yaml:"name"`
 	BindingSupport BindingSupport `json:"binding-support" yaml:"binding-support"`
@@ -50,15 +50,17 @@ type SpecConnectionMetadataField struct {
 	Example        string         `json:"example" yaml:"example"`
 }
 
-// BindingSupport tells whether a SpecConnectionMetadataField is supported by the binding type and if it is optional or required.
-// Possible values: false/optional/required
+/* BindingSupport tells whether a SpecConnectionMetadataField is supported by the binding type and if it is optional or required.
+  Possible values: false/optional/required */
 type BindingSupport struct {
 	InputBinding  string `json:"input-binding" yaml:"input-binding"`
 	OutputBinding string `json:"output-binding" yaml:"output-binding"`
 }
 
+// Operations represents the collection of metadata of all possible operations for a binding.
 type Operations []OperationMetadata
 
+// OperationMetadata contains the metadata of an operation for a binding.
 type OperationMetadata struct {
 	Name             string           `json:"name" yaml:"name"`
 	Description      string           `json:"description" yaml:"description"`
@@ -66,31 +68,36 @@ type OperationMetadata struct {
 	OperationOutputs OperationOutputs `json:"outputs" yaml:"outputs"`
 }
 
+// OperationInputs represents the details of all inputs for an operation.
 type OperationInputs struct {
 	Data     []SpecOperationInput `json:"data" yaml:"data"`
 	Metadata []SpecOperationInput `json:"metadata" yaml:"metadata"`
 }
 
+// SpecOperationInput represents an input field for an operation.
 type SpecOperationInput struct {
 	Name        string `json:"name" yaml:"name"`
 	Required    bool   `json:"required" yaml:"required"`
 	Description string `json:"description" yaml:"description"`
 }
 
+// OperationOutputs represents outputs received as response from an operation.
 type OperationOutputs struct {
 	Data []ResponseMetadataField `json:"data" yaml:"data"`
 }
 
+// ResponseMetadataField represents the details of an output response of an operation.
 type ResponseMetadataField struct {
 	Name        string `json:"name" yaml:"name"`
 	Description string `json:"description" yaml:"description"`
 }
 
+// InputBindingMetadata represents the data received when the input binding is invoked.
 type InputBindingMetadata struct {
 	Data []ResponseMetadataField `json:"data" yaml:"data"`
 }
 
-//Method to unmarshal the SpecYAML read from spec.yaml file
+// Method to unmarshal the SpecYAML read from spec.yaml file.
 func (sp *SpecMedataData) UnmarshalYAML(sy SpecYAML) error {
 	if len(sy) == 0 {
 		return errors.New("unable to read spec metadata")
