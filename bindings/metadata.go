@@ -33,20 +33,28 @@ type SpecMedataData struct {
 	Name                   string                 `json:"name" yaml:"name"`
 	CertStatus             string                 `json:"cert-status" yaml:"cert-status"`
 	Version                string                 `json:"version" yaml:"version"`
-	BindingType            []string                 `json:"binding-type" yaml:"binding-type"`
+	BindingType            []string               `json:"binding-type" yaml:"binding-type"`
 	SpecConnectionMetadata SpecConnectionMetadata `json:"connection-metadata" yaml:"connection-metadata"`
 	Operations             Operations             `json:"operations" yaml:"operations"`
 	InputBindingMetadata   InputBindingMetadata   `json:"input-binding-metadata" yaml:"input-binding-metadata"`
 }
 
+// SpecConnectionMetadata represents the collection of all possible connection metadata fields
 type SpecConnectionMetadata []SpecConnectionMetadataField
 
+// SpecConnectionMetadataField represents details of a connection metadata field
 type SpecConnectionMetadataField struct {
-	Name                 string `json:"name" yaml:"name"`
-	Required             bool   `json:"required" yaml:"required"`
-	BindingSupported     []string   `json:"binding-support" yaml:"binding-support"`
-	Description              string `json:"description" yaml:"description"`
-	Example              string `json:"example" yaml:"example"`
+	Name           string         `json:"name" yaml:"name"`
+	BindingSupport BindingSupport `json:"binding-support" yaml:"binding-support"`
+	Description    string         `json:"description" yaml:"description"`
+	Example        string         `json:"example" yaml:"example"`
+}
+
+// BindingSupport tells whether a SpecConnectionMetadataField is supported by the binding type and if it is optional or required.
+// Possible values: false/optional/required
+type BindingSupport struct {
+	InputBinding  string `json:"input-binding" yaml:"input-binding"`
+	OutputBinding string `json:"output-binding" yaml:"output-binding"`
 }
 
 type Operations []OperationMetadata
