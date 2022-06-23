@@ -29,8 +29,8 @@ connection-metadata:
     example: mytopic
   - name: authRequired
     binding-support:
-      input-binding: true
-      output-binding: true
+      input-binding: required
+      output-binding: required
     description: Enable SASL authentication with the Kafka brokers.
     example: false
   - name: saslUsername

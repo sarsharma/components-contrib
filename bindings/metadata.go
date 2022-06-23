@@ -51,7 +51,7 @@ type SpecConnectionMetadataField struct {
 }
 
 /* BindingSupport tells whether a SpecConnectionMetadataField is supported by the binding type and if it is optional or required.
-  Possible values: false/optional/required */
+Possible values: false/optional/required */
 type BindingSupport struct {
 	InputBinding  string `json:"input-binding" yaml:"input-binding"`
 	OutputBinding string `json:"output-binding" yaml:"output-binding"`
