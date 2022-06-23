@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+	_ "embed"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
@@ -32,6 +33,9 @@ import (
 	"github.com/dapr/components-contrib/bindings"
 	"github.com/dapr/kit/logger"
 )
+
+//go:embed "spec/spec.yaml"
+var specYaml bindings.SpecYAML
 
 const (
 	// list of operations.
@@ -133,6 +137,19 @@ func (m *Mysql) Invoke(ctx context.Context, req *bindings.InvokeRequest) (*bindi
 		return nil, errors.Errorf("invoke request required")
 	}
 
+	if req.Operation == bindings.MetadataOperation {
+		specMetadata := bindings.SpecMedataData{}
+		err := specMetadata.UnmarshalYAML(specYaml)
+		if err != nil {
+			return nil, err
+		}
+		res, err := json.Marshal(specMetadata)
+		if err != nil {
+			return nil, err
+		}
+		return &bindings.InvokeResponse{Data: res}, nil
+	}
+
 	if req.Operation == closeOperation {
 		return nil, m.db.Close()
 	}
@@ -190,6 +207,7 @@ func (m *Mysql) Operations() []bindings.OperationKind {
 		execOperation,
 		queryOperation,
 		closeOperation,
+		bindings.MetadataOperation,
 	}
 }
 

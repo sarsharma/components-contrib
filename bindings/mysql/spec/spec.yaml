@@ -1,0 +1,72 @@
+name: mysql
+cert-status: alpha
+version: v1
+binding-type: [output]
+connection-metadata:
+  - name: url
+    binding-support:
+      input-binding: false
+      output-binding: required
+    description: Represent DB connection in Data Source Name (DNS) format.
+    example: user:password@tcp(localhost:3306)/dbname
+  - name: pemPath
+    binding-support:
+      input-binding: false
+      output-binding: required
+    description: Path to the PEM file. Used with SSL connection
+    example: path/to/pem/file
+  - name: maxIdleConns
+    binding-support:
+      input-binding: false
+      output-binding: optional
+    description: The max idle connections. Integer greater than 0
+    example: 10
+  - name: maxOpenConns
+    binding-support:
+      input-binding: false
+      output-binding: optional
+    description: The max open connections. Integer greater than 0
+    example: 10
+  - name: connMaxLifetime
+    binding-support:
+      input-binding: false
+      output-binding: optional
+    description: The max connection lifetime. Duration string
+    example: 12s
+  - name: connMaxIdleTime
+    binding-support:
+      input-binding: false
+      output-binding: optional
+    description: The max connection idle time. Duration string.
+    example: 12s
+operations:
+  - name: exec
+    description: The exec operation can be used for DDL operations (like table creation), as well as INSERT, UPDATE, DELETE operations which return only metadata (e.g. number of affected rows).
+    inputs:
+      data:
+      metadata:
+        - name: sql
+          required: true
+          description: The SQL statement to execute. Eg. INSERT INTO foo (id, c1, ts) VALUES (1, 'demo', '2020-09-24T11:45:05Z07:00')
+    outputs:
+      data:
+       - name: metadata
+         description: The metadata returned by the operation. Contains operation name, duration, start-time, end-time, rows-affected and original SQL statement.
+  - name: query
+    description: The query operation is used for SELECT statements, which returns the metadata along with data in a form of an array of row values.
+    inputs:
+      data:
+      metadata:
+        - name: sql
+          required: true
+          description: The SQL statement to execute. Eg. SELECT * FROM foo where id < 3
+    outputs:
+      data:
+       - name: metadata
+         description: Contains operation name, duration, start-time, end-time, original SQL statement and the data returned from the query.
+  - name: close
+    description: The close operation can be used to explicitly close the DB connection and return it to the pool. This operation doesn’t have any response.
+    inputs:
+      data:
+      metadata:
+    outputs:
