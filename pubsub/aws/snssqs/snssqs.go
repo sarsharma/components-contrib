@@ -32,7 +32,7 @@ import (
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
 
-	aws_auth "github.com/dapr/components-contrib/authentication/aws"
+	awsAuth "github.com/dapr/components-contrib/internal/authentication/aws"
 	"github.com/dapr/components-contrib/pubsub"
 	"github.com/dapr/kit/logger"
 )
@@ -162,7 +162,7 @@ func (s *snsSqs) Init(metadata pubsub.Metadata) error {
 	s.queues = sync.Map{}
 	s.subscriptions = sync.Map{}
 
-	sess, err := aws_auth.GetClient(md.AccessKey, md.SecretKey, md.SessionToken, md.Region, md.Endpoint)
+	sess, err := awsAuth.GetClient(md.AccessKey, md.SecretKey, md.SessionToken, md.Region, md.Endpoint)
 	if err != nil {
 		return fmt.Errorf("error creating an AWS client: %w", err)
 	}
@@ -206,7 +206,7 @@ func (s *snsSqs) setAwsAccountIDIfNotProvided(parentCtx context.Context) error {
 }
 
 func (s *snsSqs) buildARN(serviceName, entityName string) string {
-	return fmt.Sprintf("arn:aws:%s:%s:%s:%s", serviceName, s.metadata.Region, s.metadata.accountID, entityName)
+	return fmt.Sprintf("arn:%s:%s:%s:%s:%s", s.metadata.Partition, serviceName, s.metadata.Region, s.metadata.accountID, entityName)
 }
 
 func (s *snsSqs) createTopic(parentCtx context.Context, topic string) (string, error) {
@@ -731,31 +731,18 @@ func (s *snsSqs) restrictQueuePublishPolicyToOnlySNS(parentCtx context.Context, 
 		return fmt.Errorf("error getting queue attributes: %w", err)
 	}
 
-	newStatement := &statement{
-		Effect:    "Allow",
-		Principal: principal{Service: "sns.amazonaws.com"},
-		Action:    "sqs:SendMessage",
-		Resource:  sqsQueueInfo.arn,
-		Condition: condition{
-			ArnEquals: arnEquals{
-				AwsSourceArn: snsARN,
-			},
-		},
-	}
-
 	policy := &policy{Version: "2012-10-17"}
 	if policyStr, ok := getQueueAttributesOutput.Attributes[sqs.QueueAttributeNamePolicy]; ok {
 		// look for the current statement if exists, else add it and store.
 		if err = json.Unmarshal([]byte(*policyStr), policy); err != nil {
 			return fmt.Errorf("error unmarshalling sqs policy: %w", err)
 		}
-		if policy.statementExists(newStatement) {
-			// nothing to do.
-			return nil
-		}
+	}
+	conditionExists := policy.tryInsertCondition(sqsQueueInfo.arn, snsARN)
+	if conditionExists {
+		return nil
 	}
 
-	policy.addStatement(newStatement)
 	b, uerr := json.Marshal(policy)
 	if uerr != nil {
 		return fmt.Errorf("failed serializing new sqs policy: %w", uerr)

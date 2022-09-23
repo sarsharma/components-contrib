@@ -14,11 +14,13 @@ limitations under the License.
 package secretmanager
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/dapr/components-contrib/metadata"
 	"github.com/dapr/components-contrib/secretstores"
 	"github.com/dapr/kit/logger"
 )
@@ -68,14 +70,14 @@ func TestGetSecret(t *testing.T) {
 	sm := NewSecreteManager(logger.NewLogger("test"))
 
 	t.Run("Get Secret - without Init", func(t *testing.T) {
-		v, err := sm.GetSecret(secretstores.GetSecretRequest{Name: "test"})
+		v, err := sm.GetSecret(context.Background(), secretstores.GetSecretRequest{Name: "test"})
 		assert.NotNil(t, err)
 		assert.Equal(t, err, fmt.Errorf("client is not initialized"))
 		assert.Equal(t, secretstores.GetSecretResponse{Data: nil}, v)
 	})
 
 	t.Run("Get Secret - with wrong Init", func(t *testing.T) {
-		m := secretstores.Metadata{
+		m := secretstores.Metadata{Base: metadata.Base{
 			Properties: map[string]string{
 				"type":                        "service_account",
 				"project_id":                  "a",
@@ -88,9 +90,9 @@ func TestGetSecret(t *testing.T) {
 				"auth_provider_x509_cert_url": "a",
 				"client_x509_cert_url":        "a",
 			},
-		}
+		}}
 		sm.Init(m)
-		v, err := sm.GetSecret(secretstores.GetSecretRequest{Name: "test"})
+		v, err := sm.GetSecret(context.Background(), secretstores.GetSecretRequest{Name: "test"})
 		assert.NotNil(t, err)
 		assert.Equal(t, secretstores.GetSecretResponse{Data: nil}, v)
 	})
@@ -100,7 +102,7 @@ func TestBulkGetSecret(t *testing.T) {
 	sm := NewSecreteManager(logger.NewLogger("test"))
 
 	t.Run("Bulk Get Secret - without Init", func(t *testing.T) {
-		v, err := sm.BulkGetSecret(secretstores.BulkGetSecretRequest{})
+		v, err := sm.BulkGetSecret(context.Background(), secretstores.BulkGetSecretRequest{})
 		assert.NotNil(t, err)
 		assert.Equal(t, err, fmt.Errorf("client is not initialized"))
 		assert.Equal(t, secretstores.BulkGetSecretResponse{Data: nil}, v)
@@ -108,22 +110,33 @@ func TestBulkGetSecret(t *testing.T) {
 
 	t.Run("Bulk Get Secret - with wrong Init", func(t *testing.T) {
 		m := secretstores.Metadata{
-			Properties: map[string]string{
-				"type":                        "service_account",
-				"project_id":                  "a",
-				"private_key_id":              "a",
-				"private_key":                 "a",
-				"client_email":                "a",
-				"client_id":                   "a",
-				"auth_uri":                    "a",
-				"token_uri":                   "a",
-				"auth_provider_x509_cert_url": "a",
-				"client_x509_cert_url":        "a",
+			Base: metadata.Base{
+				Properties: map[string]string{
+					"type":                        "service_account",
+					"project_id":                  "a",
+					"private_key_id":              "a",
+					"private_key":                 "a",
+					"client_email":                "a",
+					"client_id":                   "a",
+					"auth_uri":                    "a",
+					"token_uri":                   "a",
+					"auth_provider_x509_cert_url": "a",
+					"client_x509_cert_url":        "a",
+				},
 			},
 		}
 		sm.Init(m)
-		v, err := sm.BulkGetSecret(secretstores.BulkGetSecretRequest{})
+		v, err := sm.BulkGetSecret(context.Background(), secretstores.BulkGetSecretRequest{})
 		assert.NotNil(t, err)
 		assert.Equal(t, secretstores.BulkGetSecretResponse{Data: nil}, v)
+	})
+}
+
+func TestGetFeatures(t *testing.T) {
+	s := NewSecreteManager(logger.NewLogger("test"))
+	// Yes, we are skipping initialization as feature retrieval doesn't depend on it.
+	t.Run("no features are advertised", func(t *testing.T) {
+		f := s.Features()
+		assert.Empty(t, f)
 	})
 }

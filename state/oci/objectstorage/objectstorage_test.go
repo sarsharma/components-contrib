@@ -41,7 +41,7 @@ func getDummyOCIObjectStorageConfiguration() map[string]string {
 
 func TestInit(t *testing.T) {
 	meta := state.Metadata{}
-	statestore := NewOCIObjectStorageStore(logger.NewLogger("logger"))
+	statestore := NewOCIObjectStorageStore(logger.NewLogger("logger")).(*StateStore)
 	t.Parallel()
 	t.Run("Init with beautifully complete yet incorrect metadata", func(t *testing.T) {
 		meta.Properties = getDummyOCIObjectStorageConfiguration()
@@ -148,7 +148,7 @@ func TestInit(t *testing.T) {
 
 func TestFeatures(t *testing.T) {
 	t.Parallel()
-	s := NewOCIObjectStorageStore(logger.NewLogger("logger"))
+	s := NewOCIObjectStorageStore(logger.NewLogger("logger")).(*StateStore)
 	t.Run("Test contents of Features", func(t *testing.T) {
 		features := s.Features()
 		assert.Contains(t, features, state.FeatureETag)
@@ -179,7 +179,7 @@ type mockedObjectStoreClient struct {
 	pingBucketIsCalled bool
 }
 
-func (c *mockedObjectStoreClient) getObject(ctx context.Context, objectname string, logger logger.Logger) (content []byte, etag *string, metadata map[string]string, err error) {
+func (c *mockedObjectStoreClient) getObject(ctx context.Context, objectname string) (content []byte, etag *string, metadata map[string]string, err error) {
 	c.getIsCalled = true
 	etagString := "etag"
 	contentString := "Hello World"
@@ -210,7 +210,7 @@ func (c *mockedObjectStoreClient) deleteObject(ctx context.Context, objectname s
 	return nil
 }
 
-func (c *mockedObjectStoreClient) putObject(ctx context.Context, objectname string, contentLen int64, content io.ReadCloser, metadata map[string]string, etag *string, logger logger.Logger) error {
+func (c *mockedObjectStoreClient) putObject(ctx context.Context, objectname string, contentLen int64, content io.ReadCloser, metadata map[string]string, etag *string) error {
 	c.putIsCalled = true
 	if etag != nil && *etag == "notTheCorrectETag" {
 		return fmt.Errorf("failed to delete object because of incorrect etag-value ")
@@ -221,17 +221,17 @@ func (c *mockedObjectStoreClient) putObject(ctx context.Context, objectname stri
 	return nil
 }
 
-func (c *mockedObjectStoreClient) initStorageBucket(logger logger.Logger) error {
+func (c *mockedObjectStoreClient) initStorageBucket() error {
 	return nil
 }
 
-func (c *mockedObjectStoreClient) pingBucket(logger logger.Logger) error {
+func (c *mockedObjectStoreClient) pingBucket() error {
 	c.pingBucketIsCalled = true
 	return nil
 }
 
 func TestGetWithMockClient(t *testing.T) {
-	s := NewOCIObjectStorageStore(logger.NewLogger("logger"))
+	s := NewOCIObjectStorageStore(logger.NewLogger("logger")).(*StateStore)
 	mockClient := &mockedObjectStoreClient{}
 	s.client = mockClient
 	t.Parallel()
@@ -261,7 +261,7 @@ func TestGetWithMockClient(t *testing.T) {
 
 func TestInitWithMockClient(t *testing.T) {
 	t.Parallel()
-	s := NewOCIObjectStorageStore(logger.NewLogger("logger"))
+	s := NewOCIObjectStorageStore(logger.NewLogger("logger")).(*StateStore)
 	s.client = &mockedObjectStoreClient{}
 	meta := state.Metadata{}
 	t.Run("Test Init with incomplete configuration", func(t *testing.T) {
@@ -272,7 +272,7 @@ func TestInitWithMockClient(t *testing.T) {
 
 func TestPingWithMockClient(t *testing.T) {
 	t.Parallel()
-	s := NewOCIObjectStorageStore(logger.NewLogger("logger"))
+	s := NewOCIObjectStorageStore(logger.NewLogger("logger")).(*StateStore)
 	mockClient := &mockedObjectStoreClient{}
 	s.client = mockClient
 
@@ -285,7 +285,7 @@ func TestPingWithMockClient(t *testing.T) {
 
 func TestSetWithMockClient(t *testing.T) {
 	t.Parallel()
-	statestore := NewOCIObjectStorageStore(logger.NewLogger("logger"))
+	statestore := NewOCIObjectStorageStore(logger.NewLogger("logger")).(*StateStore)
 	mockClient := &mockedObjectStoreClient{}
 	statestore.client = mockClient
 	t.Run("Set without a key", func(t *testing.T) {
@@ -344,7 +344,7 @@ func TestSetWithMockClient(t *testing.T) {
 
 func TestDeleteWithMockClient(t *testing.T) {
 	t.Parallel()
-	s := NewOCIObjectStorageStore(logger.NewLogger("logger"))
+	s := NewOCIObjectStorageStore(logger.NewLogger("logger")).(*StateStore)
 	mockClient := &mockedObjectStoreClient{}
 	s.client = mockClient
 	t.Run("Delete without a key", func(t *testing.T) {

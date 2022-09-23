@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -28,6 +28,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/dapr/components-contrib/bindings"
+	"github.com/dapr/components-contrib/metadata"
 	"github.com/dapr/kit/logger"
 )
 
@@ -51,7 +52,7 @@ type createResponse struct {
 }
 
 // NewLocalStorage returns a new LocalStorage instance.
-func NewLocalStorage(logger logger.Logger) *LocalStorage {
+func NewLocalStorage(logger logger.Logger) bindings.OutputBinding {
 	return &LocalStorage{logger: logger}
 }
 
@@ -71,15 +72,9 @@ func (ls *LocalStorage) Init(metadata bindings.Metadata) error {
 	return nil
 }
 
-func (ls *LocalStorage) parseMetadata(metadata bindings.Metadata) (*Metadata, error) {
-	lsInfo := metadata.Properties
-	b, err := json.Marshal(lsInfo)
-	if err != nil {
-		return nil, err
-	}
-
+func (ls *LocalStorage) parseMetadata(meta bindings.Metadata) (*Metadata, error) {
 	var m Metadata
-	err = json.Unmarshal(b, &m)
+	err := metadata.DecodeMetadata(meta.Properties, &m)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +153,7 @@ func (ls *LocalStorage) get(filename string, req *bindings.InvokeRequest) (*bind
 		return nil, err
 	}
 
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		ls.logger.Debugf("%s", err)
 
@@ -247,7 +242,7 @@ func walkPath(root string) ([]string, error) {
 }
 
 // Invoke is called for output bindings.
-func (ls *LocalStorage) Invoke(ctx context.Context, req *bindings.InvokeRequest) (*bindings.InvokeResponse, error) {
+func (ls *LocalStorage) Invoke(_ context.Context, req *bindings.InvokeRequest) (*bindings.InvokeResponse, error) {
 	filename := ""
 	if val, ok := req.Metadata[fileNameMetadataKey]; ok && val != "" {
 		filename = val

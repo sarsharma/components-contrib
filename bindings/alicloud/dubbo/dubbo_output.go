@@ -37,7 +37,7 @@ type DubboOutputBinding struct {
 
 var dubboBinding *DubboOutputBinding
 
-func NewDubboOutput(logger logger.Logger) *DubboOutputBinding {
+func NewDubboOutput(logger logger.Logger) bindings.OutputBinding {
 	if dubboBinding == nil {
 		dubboBinding = &DubboOutputBinding{
 			ctxCache: make(map[string]*dubboContext),
@@ -81,7 +81,7 @@ func (out *DubboOutputBinding) Invoke(ctx context.Context, req *bindings.InvokeR
 		out.cacheLock.RUnlock()
 	}
 
-	rsp, err := cachedDubboCtx.Invoke(req.Data)
+	rsp, err := cachedDubboCtx.Invoke(ctx, req.Data)
 	if data, ok := rsp.([]byte); ok {
 		finalResult.Data = data
 	}

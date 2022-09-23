@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/dapr/components-contrib/bindings"
+	"github.com/dapr/components-contrib/metadata"
 	"github.com/dapr/kit/logger"
 )
 
@@ -41,8 +42,6 @@ var (
 	ErrMetadataRawNotFound     = errors.Errorf("required metadata not set: %s", rawQueryKey)
 )
 
-var _ bindings.OutputBinding = &Influx{}
-
 // Influx allows writing to InfluxDB.
 type Influx struct {
 	metadata *influxMetadata
@@ -60,7 +59,7 @@ type influxMetadata struct {
 }
 
 // NewInflux returns a new kafka binding instance.
-func NewInflux(logger logger.Logger) *Influx {
+func NewInflux(logger logger.Logger) bindings.OutputBinding {
 	return &Influx{logger: logger}
 }
 
@@ -97,14 +96,9 @@ func (i *Influx) Init(metadata bindings.Metadata) error {
 }
 
 // GetInfluxMetadata returns new Influx metadata.
-func (i *Influx) getInfluxMetadata(metadata bindings.Metadata) (*influxMetadata, error) {
-	b, err := json.Marshal(metadata.Properties)
-	if err != nil {
-		return nil, err
-	}
-
+func (i *Influx) getInfluxMetadata(meta bindings.Metadata) (*influxMetadata, error) {
 	var iMetadata influxMetadata
-	err = json.Unmarshal(b, &iMetadata)
+	err := metadata.DecodeMetadata(meta.Properties, &iMetadata)
 	if err != nil {
 		return nil, err
 	}

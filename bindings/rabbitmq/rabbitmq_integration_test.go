@@ -17,6 +17,7 @@ limitations under the License.
 package rabbitmq
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -29,7 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/dapr/components-contrib/bindings"
-	contrib_metadata "github.com/dapr/components-contrib/metadata"
+	contribMetadata "github.com/dapr/components-contrib/metadata"
 	"github.com/dapr/kit/logger"
 )
 
@@ -71,17 +72,17 @@ func TestQueuesWithTTL(t *testing.T) {
 	metadata := bindings.Metadata{
 		Name: "testQueue",
 		Properties: map[string]string{
-			"queueName":                     queueName,
-			"host":                          rabbitmqHost,
-			"deleteWhenUnused":              strconv.FormatBool(exclusive),
-			"durable":                       strconv.FormatBool(durable),
-			contrib_metadata.TTLMetadataKey: strconv.FormatInt(ttlInSeconds, 10),
+			"queueName":                    queueName,
+			"host":                         rabbitmqHost,
+			"deleteWhenUnused":             strconv.FormatBool(exclusive),
+			"durable":                      strconv.FormatBool(durable),
+			contribMetadata.TTLMetadataKey: strconv.FormatInt(ttlInSeconds, 10),
 		},
 	}
 
 	logger := logger.NewLogger("test")
 
-	r := NewRabbitMQ(logger)
+	r := NewRabbitMQ(logger).(*RabbitMQ)
 	err := r.Init(metadata)
 	assert.Nil(t, err)
 
@@ -95,7 +96,7 @@ func TestQueuesWithTTL(t *testing.T) {
 	defer ch.Close()
 
 	const tooLateMsgContent = "too_late_msg"
-	_, err = r.Invoke(&bindings.InvokeRequest{Data: []byte(tooLateMsgContent)})
+	_, err = r.Invoke(context.Backgound(), &bindings.InvokeRequest{Data: []byte(tooLateMsgContent)})
 	assert.Nil(t, err)
 
 	time.Sleep(time.Second + (ttlInSeconds * time.Second))
@@ -106,7 +107,7 @@ func TestQueuesWithTTL(t *testing.T) {
 
 	// Getting before it is expired, should return it
 	const testMsgContent = "test_msg"
-	_, err = r.Invoke(&bindings.InvokeRequest{Data: []byte(testMsgContent)})
+	_, err = r.Invoke(context.Backgound(), &bindings.InvokeRequest{Data: []byte(testMsgContent)})
 	assert.Nil(t, err)
 
 	msg, ok, err := getMessageWithRetries(ch, queueName, maxGetDuration)
@@ -138,7 +139,7 @@ func TestPublishingWithTTL(t *testing.T) {
 
 	logger := logger.NewLogger("test")
 
-	rabbitMQBinding1 := NewRabbitMQ(logger)
+	rabbitMQBinding1 := NewRabbitMQ(logger).(*RabbitMQ)
 	err := rabbitMQBinding1.Init(metadata)
 	assert.Nil(t, err)
 
@@ -155,11 +156,11 @@ func TestPublishingWithTTL(t *testing.T) {
 	writeRequest := bindings.InvokeRequest{
 		Data: []byte(tooLateMsgContent),
 		Metadata: map[string]string{
-			contrib_metadata.TTLMetadataKey: strconv.Itoa(ttlInSeconds),
+			contribMetadata.TTLMetadataKey: strconv.Itoa(ttlInSeconds),
 		},
 	}
 
-	_, err = rabbitMQBinding1.Invoke(&writeRequest)
+	_, err = rabbitMQBinding1.Invoke(context.Backgound(), &writeRequest)
 	assert.Nil(t, err)
 
 	time.Sleep(time.Second + (ttlInSeconds * time.Second))
@@ -169,7 +170,7 @@ func TestPublishingWithTTL(t *testing.T) {
 	assert.False(t, ok)
 
 	// Getting before it is expired, should return it
-	rabbitMQBinding2 := NewRabbitMQ(logger)
+	rabbitMQBinding2 := NewRabbitMQ(logger).(*RabbitMQ)
 	err = rabbitMQBinding2.Init(metadata)
 	assert.Nil(t, err)
 
@@ -177,10 +178,10 @@ func TestPublishingWithTTL(t *testing.T) {
 	writeRequest = bindings.InvokeRequest{
 		Data: []byte(testMsgContent),
 		Metadata: map[string]string{
-			contrib_metadata.TTLMetadataKey: strconv.Itoa(ttlInSeconds * 1000),
+			contribMetadata.TTLMetadataKey: strconv.Itoa(ttlInSeconds * 1000),
 		},
 	}
-	_, err = rabbitMQBinding2.Invoke(&writeRequest)
+	_, err = rabbitMQBinding2.Invoke(context.Backgound(), &writeRequest)
 	assert.Nil(t, err)
 
 	msg, ok, err := getMessageWithRetries(ch, queueName, maxGetDuration)
@@ -203,18 +204,18 @@ func TestExclusiveQueue(t *testing.T) {
 	metadata := bindings.Metadata{
 		Name: "testQueue",
 		Properties: map[string]string{
-			"queueName":                     queueName,
-			"host":                          rabbitmqHost,
-			"deleteWhenUnused":              strconv.FormatBool(exclusive),
-			"durable":                       strconv.FormatBool(durable),
-			"exclusive":                     strconv.FormatBool(exclusive),
-			contrib_metadata.TTLMetadataKey: strconv.FormatInt(ttlInSeconds, 10),
+			"queueName":                    queueName,
+			"host":                         rabbitmqHost,
+			"deleteWhenUnused":             strconv.FormatBool(exclusive),
+			"durable":                      strconv.FormatBool(durable),
+			"exclusive":                    strconv.FormatBool(exclusive),
+			contribMetadata.TTLMetadataKey: strconv.FormatInt(ttlInSeconds, 10),
 		},
 	}
 
 	logger := logger.NewLogger("test")
 
-	r := NewRabbitMQ(logger)
+	r := NewRabbitMQ(logger).(*RabbitMQ)
 	err := r.Init(metadata)
 	assert.Nil(t, err)
 
@@ -266,7 +267,7 @@ func TestPublishWithPriority(t *testing.T) {
 
 	logger := logger.NewLogger("test")
 
-	r := NewRabbitMQ(logger)
+	r := NewRabbitMQ(logger).(*RabbitMQ)
 	err := r.Init(metadata)
 	assert.Nil(t, err)
 
@@ -280,27 +281,27 @@ func TestPublishWithPriority(t *testing.T) {
 	defer ch.Close()
 
 	const middlePriorityMsgContent = "middle"
-	_, err = r.Invoke(&bindings.InvokeRequest{
+	_, err = r.Invoke(context.Backgound(), &bindings.InvokeRequest{
 		Metadata: map[string]string{
-			contrib_metadata.PriorityMetadataKey: "5",
+			contribMetadata.PriorityMetadataKey: "5",
 		},
 		Data: []byte(middlePriorityMsgContent),
 	})
 	assert.Nil(t, err)
 
 	const lowPriorityMsgContent = "low"
-	_, err = r.Invoke(&bindings.InvokeRequest{
+	_, err = r.Invoke(context.Backgound(), &bindings.InvokeRequest{
 		Metadata: map[string]string{
-			contrib_metadata.PriorityMetadataKey: "1",
+			contribMetadata.PriorityMetadataKey: "1",
 		},
 		Data: []byte(lowPriorityMsgContent),
 	})
 	assert.Nil(t, err)
 
 	const highPriorityMsgContent = "high"
-	_, err = r.Invoke(&bindings.InvokeRequest{
+	_, err = r.Invoke(context.Backgound(), &bindings.InvokeRequest{
 		Metadata: map[string]string{
-			contrib_metadata.PriorityMetadataKey: "10",
+			contribMetadata.PriorityMetadataKey: "10",
 		},
 		Data: []byte(highPriorityMsgContent),
 	})

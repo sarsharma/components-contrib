@@ -43,7 +43,7 @@ type postmarkMetadata struct {
 }
 
 // NewPostmark returns a new Postmark bindings instance.
-func NewPostmark(logger logger.Logger) *Postmark {
+func NewPostmark(logger logger.Logger) bindings.OutputBinding {
 	return &Postmark{logger: logger}
 }
 
@@ -93,7 +93,7 @@ func (p *Postmark) Operations() []bindings.OperationKind {
 }
 
 // Invoke does the work of sending message to Postmark API.
-func (p *Postmark) Invoke(ctx context.Context, req *bindings.InvokeRequest) (*bindings.InvokeResponse, error) {
+func (p *Postmark) Invoke(_ context.Context, req *bindings.InvokeRequest) (*bindings.InvokeResponse, error) {
 	// We allow two possible sources of the properties we need,
 	// the component metadata or request metadata, request takes priority if present
 

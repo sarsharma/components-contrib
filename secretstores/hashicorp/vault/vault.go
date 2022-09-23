@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -65,6 +64,8 @@ const (
 	valueTypeMap  valueType = "map"
 	valueTypeText valueType = "text"
 )
+
+var _ secretstores.SecretStore = (*vaultSecretStore)(nil)
 
 func (v valueType) isMapType() bool {
 	return v == valueTypeMap
@@ -205,11 +206,11 @@ func metadataToTLSConfig(props map[string]string) *tlsConfig {
 }
 
 // GetSecret retrieves a secret using a key and returns a map of decrypted string/string values.
-func (v *vaultSecretStore) getSecret(secret, version string) (*vaultKVResponse, error) {
+func (v *vaultSecretStore) getSecret(ctx context.Context, secret, version string) (*vaultKVResponse, error) {
 	// Create get secret url
 	vaultSecretPathAddr := fmt.Sprintf("%s/v1/%s/data/%s/%s?version=%s", v.vaultAddress, v.vaultEnginePath, v.vaultKVPrefix, secret, version)
 
-	httpReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet, vaultSecretPathAddr, nil)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, vaultSecretPathAddr, nil)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate request: %w", err)
 	}
@@ -247,7 +248,7 @@ func (v *vaultSecretStore) getSecret(secret, version string) (*vaultKVResponse, 
 		}
 	} else {
 		// treat the secret as string
-		b, err := ioutil.ReadAll(httpresp.Body)
+		b, err := io.ReadAll(httpresp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't read response: %s", err)
 		}
@@ -261,13 +262,13 @@ func (v *vaultSecretStore) getSecret(secret, version string) (*vaultKVResponse, 
 }
 
 // GetSecret retrieves a secret using a key and returns a map of decrypted string/string values.
-func (v *vaultSecretStore) GetSecret(req secretstores.GetSecretRequest) (secretstores.GetSecretResponse, error) {
+func (v *vaultSecretStore) GetSecret(ctx context.Context, req secretstores.GetSecretRequest) (secretstores.GetSecretResponse, error) {
 	// version 0 represent for latest version
 	version := "0"
 	if value, ok := req.Metadata[versionID]; ok {
 		version = value
 	}
-	d, err := v.getSecret(req.Name, version)
+	d, err := v.getSecret(ctx, req.Name, version)
 	if err != nil {
 		return secretstores.GetSecretResponse{Data: nil}, err
 	}
@@ -280,7 +281,7 @@ func (v *vaultSecretStore) GetSecret(req secretstores.GetSecretRequest) (secrets
 }
 
 // BulkGetSecret retrieves all secrets in the store and returns a map of decrypted string/string values.
-func (v *vaultSecretStore) BulkGetSecret(req secretstores.BulkGetSecretRequest) (secretstores.BulkGetSecretResponse, error) {
+func (v *vaultSecretStore) BulkGetSecret(ctx context.Context, req secretstores.BulkGetSecretRequest) (secretstores.BulkGetSecretResponse, error) {
 	version := "0"
 	if value, ok := req.Metadata[versionID]; ok {
 		version = value
@@ -290,14 +291,14 @@ func (v *vaultSecretStore) BulkGetSecret(req secretstores.BulkGetSecretRequest) 
 		Data: map[string]map[string]string{},
 	}
 
-	keys, err := v.listKeysUnderPath("")
+	keys, err := v.listKeysUnderPath(ctx, "")
 	if err != nil {
 		return secretstores.BulkGetSecretResponse{}, err
 	}
 
 	for _, key := range keys {
 		keyValues := map[string]string{}
-		secrets, err := v.getSecret(key, version)
+		secrets, err := v.getSecret(ctx, key, version)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				// version not exist skip
@@ -318,7 +319,7 @@ func (v *vaultSecretStore) BulkGetSecret(req secretstores.BulkGetSecretRequest) 
 
 // listKeysUnderPath get all the keys recursively under a given path.(returned keys including path as prefix)
 // path should not has `/` prefix.
-func (v *vaultSecretStore) listKeysUnderPath(path string) ([]string, error) {
+func (v *vaultSecretStore) listKeysUnderPath(ctx context.Context, path string) ([]string, error) {
 	var vaultSecretsPathAddr string
 
 	// Create list secrets url
@@ -328,7 +329,7 @@ func (v *vaultSecretStore) listKeysUnderPath(path string) ([]string, error) {
 		vaultSecretsPathAddr = fmt.Sprintf("%s/v1/%s/metadata/%s/%s", v.vaultAddress, v.vaultEnginePath, v.vaultKVPrefix, path)
 	}
 
-	httpReq, err := http.NewRequestWithContext(context.Background(), "LIST", vaultSecretsPathAddr, nil)
+	httpReq, err := http.NewRequestWithContext(ctx, "LIST", vaultSecretsPathAddr, nil)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate request: %s", err)
 	}
@@ -362,7 +363,7 @@ func (v *vaultSecretStore) listKeysUnderPath(path string) ([]string, error) {
 		if v.isSecretPath(key) {
 			res = append(res, path+key)
 		} else {
-			subKeys, err := v.listKeysUnderPath(path + key)
+			subKeys, err := v.listKeysUnderPath(ctx, path+key)
 			if err != nil {
 				return nil, err
 			}
@@ -394,7 +395,7 @@ func (v *vaultSecretStore) initVaultToken() error {
 		return nil
 	}
 
-	data, err := ioutil.ReadFile(v.vaultTokenMountPath)
+	data, err := os.ReadFile(v.vaultTokenMountPath)
 	if err != nil {
 		return fmt.Errorf("couldn't read vault token from mount path %s err: %s", v.vaultTokenMountPath, err)
 	}
@@ -477,7 +478,7 @@ func (v *vaultSecretStore) getRootCAsPools(vaultCAPem string, vaultCAPath string
 // readCertificateFile reads the certificate at given path.
 func readCertificateFile(certPool *x509.CertPool, path string) error {
 	// Read certificate file
-	pemFile, err := ioutil.ReadFile(path)
+	pemFile, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("couldn't read CA file from disk: %s", err)
 	}
@@ -503,4 +504,9 @@ func readCertificateFolder(certPool *x509.CertPool, path string) error {
 	}
 
 	return nil
+}
+
+// Features returns the features available in this secret store.
+func (v *vaultSecretStore) Features() []secretstores.Feature {
+	return []secretstores.Feature{secretstores.FeatureMultipleKeyValuesPerSecret}
 }

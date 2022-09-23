@@ -16,7 +16,6 @@ package rocketmq
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -51,9 +50,8 @@ type rocketMQ struct {
 	consumer     mq.PushConsumer
 	consumerLock sync.RWMutex
 
-	ctx           context.Context
-	cancel        context.CancelFunc
-	backOffConfig retry.Config
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func NewRocketMQ(l logger.Logger) pubsub.PubSub {
@@ -68,19 +66,12 @@ func NewRocketMQ(l logger.Logger) pubsub.PubSub {
 
 func (r *rocketMQ) Init(metadata pubsub.Metadata) error {
 	var err error
-	r.metadata, err = parseRocketMQMetaData(metadata)
+	r.metadata, err = parseRocketMQMetaData(metadata, r.logger)
 	if err != nil {
 		return err
 	}
 	r.ctx, r.cancel = context.WithCancel(context.Background())
-	// Default retry configuration is used if no
-	// backOff properties are set.
-	if err = retry.DecodeConfigWithPrefix(
-		&r.backOffConfig,
-		metadata.Properties,
-		"backOff"); err != nil {
-		return fmt.Errorf("retry configuration error: %w", err)
-	}
+
 	return nil
 }
 
@@ -88,6 +79,9 @@ func (r *rocketMQ) setUpConsumer() (mq.PushConsumer, error) {
 	opts := make([]mqc.Option, 0)
 	if r.metadata.ConsumerGroup != "" {
 		opts = append(opts, mqc.WithGroupName(r.metadata.ConsumerGroup))
+	}
+	if r.metadata.ConsumerBatchSize != 0 {
+		opts = append(opts, mqc.WithPullBatchSize(int32(r.metadata.ConsumerBatchSize)))
 	}
 	if r.metadata.NameSpace != "" {
 		opts = append(opts, mqc.WithNamespace(r.metadata.NameSpace))
@@ -117,6 +111,9 @@ func (r *rocketMQ) setUpProducer() (mq.Producer, error) {
 	}
 	if r.metadata.GroupName != "" {
 		opts = append(opts, mqp.WithGroupName(r.metadata.GroupName))
+	}
+	if r.metadata.ProducerGroup != "" {
+		opts = append(opts, mqp.WithGroupName(r.metadata.ProducerGroup))
 	}
 	if r.metadata.NameServerDomain != "" {
 		opts = append(opts, mqp.WithNameServerDomain(r.metadata.NameServerDomain))
@@ -176,7 +173,8 @@ func (r *rocketMQ) Publish(req *pubsub.PublishRequest) error {
 				}
 			}
 
-			ctx, cancel := context.WithTimeout(r.ctx, time.Duration(r.metadata.SendTimeOut))
+			sendTimeOut := time.Duration(r.metadata.SendTimeOutSec) * time.Second
+			ctx, cancel := context.WithTimeout(r.ctx, sendTimeOut)
 			defer cancel()
 			result, err := producer.SendSync(ctx, msg)
 			if err != nil {
@@ -227,26 +225,15 @@ func (r *rocketMQ) adaptCallback(topic, consumerGroup, mqType, mqExpr string, ha
 			if msg.Queue != nil {
 				metadata[metadataRocketmqBrokerName] = msg.Queue.BrokerName
 			}
-			newMessage := pubsub.NewMessage{
+			newMessage := &pubsub.NewMessage{
 				Topic:    topic,
 				Data:     dataBytes,
 				Metadata: metadata,
 			}
-			b := r.backOffConfig.NewBackOffWithContext(ctx)
-			retError := retry.NotifyRecover(func() error {
-				herr := handler(ctx, &newMessage)
-				if herr != nil {
-					r.logger.Errorf("rocketmq error: fail to send message to dapr application. topic:%s cloudEventsMap-length:%d err:%newMessage ", newMessage.Topic, len(msg.Body), herr)
-					success = false
-				}
-				return herr
-			}, b, func(err error, d time.Duration) {
-				r.logger.Errorf("rocketmq error: fail to processing message. topic:%s cloudEventsMap-length:%d. Retrying...", newMessage.Topic, len(msg.Body))
-			}, func() {
-				r.logger.Infof("rocketmq successfully processed message after it previously failed. topic:%s cloudEventsMap-length:%d.", newMessage.Topic, len(msg.Body))
-			})
-			if retError != nil && !errors.Is(retError, context.Canceled) {
-				r.logger.Errorf("rocketmq error: processing message and retries are exhausted. topic:%s cloudEventsMap-length:%d.", newMessage.Topic, len(msg.Body))
+			err = handler(ctx, newMessage)
+			if err != nil {
+				r.logger.Errorf("rocketmq error: fail to process message. topic:%s cloudEventsMap-length:%d err:%v.", newMessage.Topic, len(msg.Body), err)
+				success = false
 			}
 		}
 		if !success {

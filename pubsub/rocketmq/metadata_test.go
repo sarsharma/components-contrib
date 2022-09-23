@@ -19,22 +19,22 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	mdata "github.com/dapr/components-contrib/metadata"
 	"github.com/dapr/components-contrib/pubsub"
+	"github.com/dapr/kit/logger"
 )
 
 func TestMetaDataDecode(t *testing.T) {
 	props := map[string]string{
-		"accessProto":   "http",
 		"accessKey":     "**",
 		"secretKey":     "***",
 		"nameServer":    "http://test.nameserver",
 		"consumerGroup": "defaultGroup",
 		"nameSpace":     "defaultNamespace",
 	}
-	pubsubMeta := pubsub.Metadata{Properties: props}
-	metaData, err := parseRocketMQMetaData(pubsubMeta)
+	pubsubMeta := pubsub.Metadata{Base: mdata.Base{Properties: props}}
+	metaData, err := parseRocketMQMetaData(pubsubMeta, logger.NewLogger("test"))
 	require.NoError(t, err)
-	assert.Equal(t, "http", metaData.AccessProto)
 	assert.Equal(t, "**", metaData.AccessKey)
 	assert.Equal(t, "***", metaData.SecretKey)
 	assert.Equal(t, "defaultGroup", metaData.ConsumerGroup)
